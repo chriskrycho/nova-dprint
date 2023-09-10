@@ -1,9 +1,16 @@
 {
+  "private": true,
   "volta": {
     "node": "18.17.1",
     "pnpm": "8.7.4"
   },
+  "scripts": {
+    "typecheck": "tsc",
+    "bundle": "esbuild ./src/main.ts --bundle --outfile ./dprint.novaextension/main.js",
+    "build": "typecheck && bundle"
+  },
   "devDependencies": {
+    "@tsconfig/next": "^2.0.0",
     "dprint": "^0.41.0",
     "esbuild": "^0.19.2",
     "true-myth": "^7.1.0",

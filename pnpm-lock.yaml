@@ -5,6 +5,9 @@ settings:
   excludeLinksFromLockfile: false
 
 devDependencies:
+  '@tsconfig/next':
+    specifier: ^2.0.0
+    version: 2.0.0
   dprint:
     specifier: ^0.41.0
     version: 0.41.0
@@ -265,6 +268,10 @@ packages:
     requiresBuild: true
     dev: true
     optional: true
+
+  /@tsconfig/next@2.0.0:
+    resolution: {integrity: sha512-ip/XpFLWuUrhDkbI8ixpWxPlmWvUhQCLS5rB7nibcZUavA1Ru34Q7a5CniBM7BdHw1YlAXu40HXUn66h/A4EBQ==}
+    dev: true
 
   /dprint@0.41.0:
     resolution: {integrity: sha512-9Ctv6EnwOy5Ai566DczI/QhAC6y+AhWDA2gFU8Zz4xezUy1BevHaIYhfdLWZQxh4Qf4H28lRu1Lq+hhIm1US9w==}

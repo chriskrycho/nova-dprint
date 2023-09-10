@@ -8,5 +8,6 @@
   "entitlements": {
     "filesystem": "readonly",
     "process": true
-  }
+  },
+  "main": "main.js"
 }

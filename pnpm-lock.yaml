@@ -14,6 +14,9 @@ devDependencies:
   dprint:
     specifier: ^0.41.0
     version: 0.41.0
+  true-myth:
+    specifier: ^7.1.0
+    version: 7.1.0
   typescript:
     specifier: ^5.2.2
     version: 5.2.2
@@ -939,6 +942,11 @@ packages:
     engines: {node: '>=12'}
     dependencies:
       escape-string-regexp: 5.0.0
+    dev: true
+
+  /true-myth@7.1.0:
+    resolution: {integrity: sha512-DcdyFRHfNyG31HgNtxqrVAHmBf7y1w4YZCpU7IR2Ohytm4LITv+u075Vc3dLyK9cdEPq6K9398iao6YpkU8hHA==}
+    engines: {node: 18.* || >= 20.*}
     dev: true
 
   /typescript@5.2.2:

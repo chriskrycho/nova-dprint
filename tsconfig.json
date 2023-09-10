@@ -1,3 +1,9 @@
 {
-  "extends": "@tsconfig/next"
+  "extends": "@tsconfig/next",
+  "compilerOptions": {
+    "target": "ESNext",
+    // We use esbuild to do the actual compilation; tsc only does type checking.
+    "noEmit": true
+  },
+  "include": ["src"]
 }

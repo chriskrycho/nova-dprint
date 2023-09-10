@@ -5,9 +5,27 @@ settings:
   excludeLinksFromLockfile: false
 
 devDependencies:
+  '@dprint/formatter':
+    specifier: ^0.2.0
+    version: 0.2.0
+  '@dprint/json':
+    specifier: ^0.17.4
+    version: 0.17.4
+  '@dprint/markdown':
+    specifier: ^0.16.1
+    version: 0.16.1
+  '@dprint/toml':
+    specifier: ^0.5.4
+    version: 0.5.4
+  '@dprint/typescript':
+    specifier: ^0.87.1
+    version: 0.87.1
   '@tsconfig/next':
     specifier: ^2.0.0
     version: 2.0.0
+  '@types/nova-editor':
+    specifier: ^1.0.1
+    version: 1.0.1
   dprint:
     specifier: ^0.41.0
     version: 0.41.0
@@ -39,6 +57,14 @@ packages:
     dev: true
     optional: true
 
+  /@dprint/formatter@0.2.0:
+    resolution: {integrity: sha512-E1q1JaOPeEUBhG//IUayqJQvNpqprZ0OCF8B/bIhUqSsMIp0Y74PgF8JPvDCrOdq43qiGUYAavVO8iCBHOoU/A==}
+    dev: true
+
+  /@dprint/json@0.17.4:
+    resolution: {integrity: sha512-9BmvkJRwICKr2hoC+WYtc3ewHi4PRRTmtk3RShpBFDEcYyMVB9+vXyxw/J/oMUlRfMY0jvOM5m+QlxgSo6g88Q==}
+    dev: true
+
   /@dprint/linux-arm64-glibc@0.41.0:
     resolution: {integrity: sha512-U4xWzjjO/aAct8cSSMZFhg8l1jWy6VahXh8zWjGBufwX7t3xEcxMG9RyAp/ioYSY6wl4YXAmnUHywhC+wSjDHQ==}
     cpu: [arm64]
@@ -62,6 +88,18 @@ packages:
     requiresBuild: true
     dev: true
     optional: true
+
+  /@dprint/markdown@0.16.1:
+    resolution: {integrity: sha512-cQe+x1P/9orSrwb36nFJcQUzn8w/I9CQIDmenCw0tZeAVeGxuaZu8Ypq1RaNbvXDffn6w+xOtyfBB7qGcMOhMw==}
+    dev: true
+
+  /@dprint/toml@0.5.4:
+    resolution: {integrity: sha512-d+5GwwzztZD0QixmOBhaO6nWVLsAeYsJ1HJYNxDoDRbASFCpza9BBVshG5ctBRXCkkIHhD9BO1SnbOoRQltUQw==}
+    dev: true
+
+  /@dprint/typescript@0.87.1:
+    resolution: {integrity: sha512-XdbJCIbUdqijEgKOuFCSRwJAjHp5zUKZVzxrNn5xU9vn6Uy71JkvZT9Esw9hCEjno/vPmJ6IFhVGdoGlEzN2vQ==}
+    dev: true
 
   /@dprint/win32-x64@0.41.0:
     resolution: {integrity: sha512-mFx6x4Hn848/D4gPbDm7g1wlnOh2SGoVF9c9HMGCuOobUU2WIBztzV4L5qlFCB3gprlS0ru9BhlMpGhrp0CBYA==}
@@ -271,6 +309,16 @@ packages:
 
   /@tsconfig/next@2.0.0:
     resolution: {integrity: sha512-ip/XpFLWuUrhDkbI8ixpWxPlmWvUhQCLS5rB7nibcZUavA1Ru34Q7a5CniBM7BdHw1YlAXu40HXUn66h/A4EBQ==}
+    dev: true
+
+  /@types/nova-editor-node@5.1.0:
+    resolution: {integrity: sha512-Jj8wnUGOYmmNgd61JHSG0kV5o/zlthVn92qCdLz6VYa7CM4KSmwPjCeCzw2JqjJw6QONpcMXTVH9TKtLCnFf1Q==}
+    dev: true
+
+  /@types/nova-editor@1.0.1:
+    resolution: {integrity: sha512-aFZ2n+zL5Lw1zVCq4h3ipA3v/bam3+f6EN88HTtAon/8AEUxvbWtO23p3B/rDRBI9RH96wkfWBHqjtOEUEgHkA==}
+    dependencies:
+      '@types/nova-editor-node': 5.1.0
     dev: true
 
   /dprint@0.41.0:

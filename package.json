@@ -4,13 +4,20 @@
     "node": "18.17.1",
     "pnpm": "8.7.4"
   },
+  "type": "commonjs",
   "scripts": {
     "typecheck": "tsc",
-    "bundle": "esbuild ./src/main.ts --bundle --outfile ./dprint.novaextension/main.js",
-    "build": "typecheck && bundle"
+    "bundle": "esbuild ./src/main.ts --bundle --outfile=./dprint.novaextension/Scripts/main.js --format=cjs",
+    "build": "pnpm typecheck && pnpm bundle"
   },
   "devDependencies": {
+    "@dprint/formatter": "^0.2.0",
+    "@dprint/json": "^0.17.4",
+    "@dprint/markdown": "^0.16.1",
+    "@dprint/toml": "^0.5.4",
+    "@dprint/typescript": "^0.87.1",
     "@tsconfig/next": "^2.0.0",
+    "@types/nova-editor": "^1.0.1",
     "dprint": "^0.41.0",
     "esbuild": "^0.19.2",
     "true-myth": "^7.1.0",

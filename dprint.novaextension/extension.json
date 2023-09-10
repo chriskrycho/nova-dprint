@@ -30,7 +30,7 @@
       {
         "title": "Save without formatting",
         "command": "dprint.save-without-formatting",
-      "shortcut": "cmd-opt-shift-s"
+        "shortcut": "cmd-opt-shift-s"
       }
     ]
   },

@@ -1,0 +1,12 @@
+{
+  "identifier": "chriskrycho.dprint",
+  "name": "dprint",
+  "organization": "Chris Krycho",
+  "description": "dprint integration for Nova",
+  "version": "1.0",
+  "categories": ["formatters", "issues"],
+  "entitlements": {
+    "filesystem": "readonly",
+    "process": true
+  }
+}

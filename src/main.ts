@@ -227,9 +227,11 @@ function invokeDprintOn(document: TextDocument): Promise<Result<string, string>>
    let { resolve, promise } = defer<Result<string, string>>();
 
    let outBuffer = new Array<string>();
-   let errBuffer = new Array<string>();
    process.onStdout((result) => outBuffer.push(result));
+
+   let errBuffer = new Array<string>();
    process.onStderr((reason) => errBuffer.push(reason));
+
    process.onDidExit((status) => {
       if (status === 0) {
          if (errBuffer.length > 0) {

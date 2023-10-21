@@ -3,7 +3,7 @@
   "name": "dprint",
   "organization": "Chris Krycho",
   "description": "dprint integration for Nova",
-  "version": "1.0",
+  "version": "0.1",
   "categories": ["formatters", "issues"],
   "entitlements": {
     "filesystem": "readonly",

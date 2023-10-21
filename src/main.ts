@@ -6,7 +6,8 @@
 // only *parts* of the document.
 
 import Maybe, { just, nothing } from 'true-myth/maybe';
-import Result, { match } from 'true-myth/result';
+import Result, { match, tryOrElse } from 'true-myth/result';
+import { fromMaybe, toMaybe } from 'true-myth/toolbelt';
 
 let { fs, config, notifications, workspace } = nova;
 
@@ -29,6 +30,9 @@ export function deactivate() {
    topLevelDisposables.clear();
 }
 
+const COULD_NOT_FIND_DPRINT =
+   `Could not find a copy of dprint to use. Please specify one in the extension settings or project extension settings. (In the future, this extension will bundle its own copy as a fallback!)`;
+
 function tryToInstall() {
    info('installing extension');
 
@@ -38,11 +42,11 @@ function tryToInstall() {
          extension = instance;
       },
       Err: (reason) => {
-         error('failed to install extension');
+         error('failed to install extension:', reason);
          addNotification({
             id: 'dprint.bad-workspace',
             title: 'dprint workspace configuration',
-            body: reason,
+            body: COULD_NOT_FIND_DPRINT,
          });
       },
    });
@@ -64,14 +68,14 @@ function addNotification({ id, title, body }: {
 }
 
 class DprintExtension {
-   readonly path: string;
+   path: string;
 
    #disposables: {
       format: Maybe<Disposable>;
       formatSelection: Maybe<Disposable>;
       formatOnSave: Maybe<Disposable>;
       saveWithoutFormatting: Maybe<Disposable>;
-      didChange: Maybe<Disposable>;
+      novaConfigDidChange: Maybe<Disposable>;
    };
 
    #ignoredEditors: Set<TextEditor> = new Set();
@@ -89,7 +93,7 @@ class DprintExtension {
             'dprint.format',
             (editor: TextEditor) => {
                info('running `format` from format command');
-               format(editor);
+               return format(editor);
             },
          )),
 
@@ -113,7 +117,9 @@ class DprintExtension {
          formatOnSave: Maybe.of(workspace.activeTextEditor).map(activeEditor =>
             activeEditor.onWillSave((editor) => {
                info('running `format` from `formatOnSave`');
-               if (!this.#ignoredEditors.has(editor)) return format(editor);
+               if (this.#ignoredEditors.has(editor)) return;
+
+               return format(editor);
             })
          ),
 
@@ -121,24 +127,39 @@ class DprintExtension {
             'dprint.save-without-formatting',
             (editor: TextEditor) => {
                this.#ignoredEditors.add(editor);
-               safely(editor.save(), (reason) => JSON.stringify(reason)).then(match({
-                  Ok: (_) => {
+               return safely(editor.save(), (reason) => JSON.stringify(reason)).then(
+                  result => {
                      this.#ignoredEditors.delete(editor);
+
+                     if (result.isErr) {
+                        addNotification({
+                           id: 'dprint.error.save-without-formatting',
+                           title: 'dprint error',
+                           body:
+                              `Failed to save without executing dprint formatter. ${result.error}`,
+                        });
+                     }
                   },
-                  Err: (reason) => {
-                     addNotification({
-                        id: 'dprint.error.save-without-formatting',
-                        title: 'dprint error',
-                        body:
-                           `Failed to save without executing dprint formatter. ${reason}`,
-                     });
-                  },
-               }));
+               );
             },
          )),
 
-         didChange: just(config.onDidChange('dprint.general.path', () => {
-            todo('dprint path config change');
+         novaConfigDidChange: just(config.onDidChange('dprint.general.path', () => {
+            pathForDprint(workspace).match({
+               Ok: (path) => {
+                  info(`updating path to ${path}`);
+                  this.path = path;
+               },
+               Err: (reason) => {
+                  addNotification({
+                     id: 'dprint.error.missing-dprint',
+                     title: 'dprint config error',
+                     body: COULD_NOT_FIND_DPRINT,
+                  });
+
+                  info(reason);
+               },
+            });
          })),
       };
    }
@@ -159,10 +180,10 @@ function format(editor: TextEditor): Promise<void> {
       return invokeDprintOn(editor.document).then(match({
          Ok(formatted) {
             info('successfully returned');
-            editor.edit((edit) => {
-               info('editing with formatted code');
+            return editor.edit((edit) => {
                let range = new Range(0, editor.document.length);
                edit.replace(range, formatted);
+               info('edited with formatted code');
             });
          },
          Err(reason) {
@@ -172,6 +193,7 @@ function format(editor: TextEditor): Promise<void> {
                title: 'dprint could not format',
                body: reason,
             });
+            return Promise.resolve();
          },
       }));
    } else {
@@ -193,12 +215,52 @@ function pathForDprint(workspace: Workspace): Result<string, string> {
    }
 
    // Otherwise, check for a local installation or a global installation to use.
-   let projectPath = Maybe.of(workspace.path);
+   let dprintOnDisk = Maybe.of(workspace.path).andThen(findDprint);
+   return fromMaybe('could not find dprint on disk', dprintOnDisk);
+}
 
-   let fromProjectInstall = todo('get path from project, if any') as Maybe<string>; // use projectPath
-   let fromGlobalInstall = todo('get path from global, if any') as Maybe<string>;
+function findDprint(startingDir: string): Maybe<string> {
+   info(`trying to find local installation, starting from ${startingDir}`);
+   return withFs().orElse(withNpm).orElse(withYarn).orElse(withPnpm);
 
-   todo('get path for dprint');
+   function withFs(): Maybe<string> {
+      return find(startingDir);
+
+      function find(dir: string): Maybe<string> {
+         info(`searching in ${dir}`);
+         let pkgJsonPath = nova.path.join(dir, 'package.json');
+         let hasDep = readPackageJson(pkgJsonPath)
+            .map(pkg =>
+               Boolean(pkg.dependencies?.dprint) || Boolean(pkg.devDependencies?.dprint)
+            ).unwrapOr(false);
+         info(`has dep: ${hasDep}`);
+         if (hasDep) {
+            // TODO: account for hoisting to a parent directory.
+            let binPath = nova.path.join(dir, 'node_modules', 'dprint', 'dprint');
+            return Maybe.of(nova.fs.stat(binPath))
+               .map((stat) => stat.isFile())
+               .andThen((isValid) => isValid ? Maybe.just(binPath) : Maybe.nothing());
+         } else {
+            if (dir === '/') return Maybe.nothing();
+            return find(nova.path.dirname(dir));
+         }
+      }
+   }
+
+   function withNpm(): Maybe<string> {
+      // TODO: implement npm-based handling
+      return Maybe.nothing();
+   }
+
+   function withYarn(): Maybe<string> {
+      // TODO: implement yarn-based handling
+      return Maybe.nothing();
+   }
+
+   function withPnpm(): Maybe<string> {
+      // TODO: implement pnpm-based handling
+      return Maybe.nothing();
+   }
 }
 
 function checkPath(path: string): Result<string, string> {
@@ -382,6 +444,58 @@ function getConfig(
                unreachable(type);
          }
       });
+}
+
+function readPackageJson(filePath: string): Maybe<Package> {
+   let fd = toMaybe(
+      tryOrElse(identity, () => nova.fs.open(filePath) as FileTextMode),
+   );
+
+   return fd
+      .andThen(fd => Maybe.of(fd.read()))
+      .tap(() => console.log('successfully got an fd'))
+      .andThen(s => toMaybe(tryOrElse(identity, JSON.parse(s))))
+      .tap((parsed) => info(`parsed: ${parsed}`))
+      .andThen((contents) =>
+         isPackageJson(contents) ? Maybe.just(contents) : Maybe.nothing<Package>()
+      );
+}
+
+declare module 'true-myth/maybe' {
+   export interface Just<T> {
+      tap(cb: (value: T) => void): Maybe<T>;
+   }
+
+   export interface Nothing<T> {
+      tap(cb: (value: T) => void): Maybe<T>;
+   }
+}
+
+Maybe.prototype.tap = function<T>(this: Maybe<T>, cb: (value: T) => void): Maybe<T> {
+   if (this.isJust) {
+      cb(this.value);
+   }
+
+   return this;
+};
+
+function isPackageJson(obj: unknown): obj is Package {
+   return isObject(obj)
+      && (('dependencies' in obj && isObject(obj.dependencies))
+         || ('devDependencies' in obj && isObject(obj.devDependencies)));
+}
+
+function isObject(value: unknown): value is object {
+   return typeof value === 'object' && !!value;
+}
+
+interface Package {
+   dependencies?: Record<string, string>;
+   devDependencies?: Record<string, string>;
+}
+
+function identity<A>(a: A): A {
+   return a;
 }
 
 function unreachable(x: never): never {

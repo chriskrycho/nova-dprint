@@ -7,7 +7,6 @@
 
 import Maybe, { just, nothing } from 'true-myth/maybe';
 import Result, { match } from 'true-myth/result';
-import { toOkOrErr } from 'true-myth/toolbelt';
 
 let { fs, config, notifications, workspace } = nova;
 
@@ -307,17 +306,6 @@ function todo(details: string): never {
 function l(s: string): string {
    return nova.localize(s);
 }
-
-// This would be a good thing to do in toolbelt, maybe?
-declare module 'true-myth/maybe' {
-   interface MaybeImpl<T> {
-      toOkOrErr<E>(this: Maybe<T>, err: E): Result<T, E>;
-   }
-}
-
-Maybe.prototype.toOkOrErr = function<E>(err: E) {
-   return toOkOrErr(err, this);
-};
 
 function info(...values: unknown[]): void {
    if (canLog()) console.info(...values);

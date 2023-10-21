@@ -200,12 +200,6 @@ function pathForDprint(workspace: Workspace): Result<string, string> {
    todo('get path for dprint');
 }
 
-function requireString(value: unknown): Result<string, string> {
-   return typeof value === 'string'
-      ? Result.ok(value)
-      : Result.err(`${JSON.stringify(value)} is not a string`);
-}
-
 function checkPath(path: string): Result<string, string> {
    // Technically subject to TOCTOU bugs, and slightly slower by way of doing
    // two stats, but in this case we don't actually care; the point is to (try

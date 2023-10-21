@@ -14,7 +14,7 @@ let extension: DprintExtension | undefined;
 let topLevelDisposables = new Set<Disposable>();
 
 export function activate() {
-   info('activating dprint extension');
+   info('activating extension');
    tryToInstall();
 
    topLevelDisposables.add(workspace.onDidChangePath(_ => {
@@ -30,7 +30,7 @@ export function deactivate() {
 }
 
 function tryToInstall() {
-   info('installing dprint extension');
+   info('installing extension');
 
    DprintExtension.for(workspace).match({
       Ok: (instance) => {
@@ -38,7 +38,7 @@ function tryToInstall() {
          extension = instance;
       },
       Err: (reason) => {
-         error('failed to install dprint extension');
+         error('failed to install extension');
          addNotification({
             id: 'dprint.bad-workspace',
             title: 'workspace configuration',
@@ -58,8 +58,8 @@ function addNotification({ id, title, body }: {
    request.body = body;
    request.actions = [l('Ok')];
 
-   notifications.add(request).catch((error: unknown) => {
-      console.error(`Failed to add notification: ${error}`);
+   notifications.add(request).catch((err: unknown) => {
+      error(`Failed to add notification: ${err}`);
    });
 }
 
@@ -81,7 +81,7 @@ class DprintExtension {
    }
 
    private constructor(path: string) {
-      info(`constructing dprint extension for '${path}'`);
+      info(`constructing extension for workspace at '${path}'`);
       this.path = path;
 
       this.#disposables = {
@@ -154,10 +154,10 @@ function format(editor: TextEditor): Promise<void> {
    // TODO: handle remote documents?
    // TODO: handle unsaved documents using `unsaved://` URI scheme?
    if (editor.document.path) {
-      info(`invoking dprint on ${editor.document.path}`);
+      info(`formatting '${editor.document.path}'`);
       return invokeDprintOn(editor.document).then(match({
          Ok(formatted) {
-            info('successfully returned from dprint');
+            info('successfully returned');
             editor.edit((edit) => {
                info('editing with formatted code');
                let range = new Range(0, editor.document.length);
@@ -165,7 +165,7 @@ function format(editor: TextEditor): Promise<void> {
             });
          },
          Err(reason) {
-            error('failed to dprint', reason);
+            error('failed to format', reason);
             addNotification({
                id: 'dprint.error.format',
                title: 'Could not format',

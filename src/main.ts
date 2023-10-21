@@ -105,6 +105,7 @@ class DprintExtension {
                   // TODO: call format?
                   // To make this work, I think I would need to cache it
                   // *myself*. Gross.
+                  todo('format a range');
                }
             },
          )),

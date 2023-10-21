@@ -209,10 +209,6 @@ function checkPath(path: string): Result<string, string> {
    return Result.ok(path);
 }
 
-function asyncErr<T, E>(reason: E): Promise<Result<T, E>> {
-   return Promise.resolve(Result.err(reason));
-}
-
 function invokeDprintOn(document: TextDocument): Promise<Result<string, string>> {
    if (!extension) {
       return asyncErr('Tried to invoke dprint without an installed extension');
@@ -234,14 +230,6 @@ function invokeDprintOn(document: TextDocument): Promise<Result<string, string>>
    let errBuffer = new Array<string>();
    process.onStdout((result) => outBuffer.push(result));
    process.onStderr((reason) => errBuffer.push(reason));
-   process.start();
-
-   let stdin = process.stdin?.getWriter();
-   if (!stdin) return Promise.resolve(Result.err('could not get a handle to stdin'));
-
-   stdin.write(document.getTextInRange(new Range(0, document.length)));
-   stdin.close();
-
    process.onDidExit((status) => {
       if (status === 0) {
          if (errBuffer.length > 0) {
@@ -262,7 +250,27 @@ function invokeDprintOn(document: TextDocument): Promise<Result<string, string>>
       }
    });
 
-   return promise;
+   process.start();
+
+   // This little dance, including the assignment at the end, lets TS see that
+   // `stdin` is *actually* never defined after this.
+   let _stdin = process.stdin?.getWriter();
+   if (!_stdin) return asyncErr('could not get a handle to stdin');
+   let stdin = _stdin;
+
+   return safely(
+      stdin.write(document.getTextInRange(new Range(0, document.length))),
+      reason => `failed to write: '${reason}'`,
+   ).then(match({
+      Ok: () => safely(stdin.ready, reason => `failed to write: '${reason}'`),
+      Err: (reason) => asyncErr(reason),
+   })).then(match({
+      Ok: () => safely(stdin.close(), reason => `failed to close stdin: '${reason}'`),
+      Err: (reason) => asyncErr(reason),
+   })).then(match({
+      Ok: () => promise,
+      Err: (reason) => asyncErr(reason),
+   }));
 }
 
 interface Deferred<T> {
@@ -289,6 +297,10 @@ function safely<T, E>(
       (value) => Result.ok(value),
       (reason) => Result.err(onReject(reason)),
    );
+}
+
+function asyncErr<T, E>(reason: E): Promise<Result<T, E>> {
+   return Promise.resolve(Result.err(reason));
 }
 
 function todo(details: string): never {

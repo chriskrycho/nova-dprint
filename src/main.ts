@@ -41,7 +41,7 @@ function tryToInstall() {
          error('failed to install extension');
          addNotification({
             id: 'dprint.bad-workspace',
-            title: 'workspace configuration',
+            title: 'dprint workspace configuration',
             body: reason,
          });
       },
@@ -168,7 +168,7 @@ function format(editor: TextEditor): Promise<void> {
             error('failed to format', reason);
             addNotification({
                id: 'dprint.error.format',
-               title: 'Could not format',
+               title: 'dprint could not format',
                body: reason,
             });
          },
@@ -184,8 +184,6 @@ function format(editor: TextEditor): Promise<void> {
 function pathForDprint(workspace: Workspace): Result<string, string> {
    let configPath = getConfig(workspace.config, 'dprint.general.path', 'string')
       .or(getConfig(nova.config, 'dprint.general.path', 'string'));
-
-   info(getConfig(nova.config, 'dprint.general.path', 'string'));
 
    // When the user has specified a config path, that will override any
    // per-project or global installation.
@@ -320,9 +318,9 @@ function error(...values: unknown[]): void {
 }
 
 function canLog(): boolean {
-   let debugEnabled = getConfig(nova.config, 'dprint.general.debug-logging', 'boolean')
-      .unwrapOr(false);
-   return nova.inDevMode() || debugEnabled;
+   return nova.inDevMode()
+      || getConfig(nova.config, 'dprint.general.debug-logging', 'boolean')
+         .unwrapOr(false);
 }
 
 function getConfig(config: Configuration, key: string, type: 'string'): Maybe<string>;

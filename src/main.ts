@@ -291,10 +291,10 @@ const ExitCodeMessage = {
 
 type ExitCode = keyof typeof ExitCodeMessage;
 
-function messageForExitCode(value: number): Result<string, string> {
+function messageForExitCode(value: number): string {
    return isCode(value)
-      ? Result.ok(ExitCodeMessage[value])
-      : Result.err(`unknown exit code '${value}'`);
+      ? ExitCodeMessage[value]
+      : `unknown exit code '${value}'`;
 
    function isCode(value: number): value is ExitCode {
       return Object.keys(ExitCodeMessage).includes(value.toString());

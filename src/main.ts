@@ -243,7 +243,8 @@ function invokeDprintOn(document: TextDocument): Promise<Result<string, string>>
             resolve(Result.ok(outBuffer.join('')));
          }
       } else {
-         let base = `process exited with a failure (${status})`;
+         let statusMessage = `${status}: ${messageForExitCode(status)}`;
+         let base = `process exited with a failure (${statusMessage})`;
          let fromStderr = errBuffer.length > 0 ? '\n' + errBuffer.join('') : '';
          let message = `${base}${fromStderr}`;
          resolve(Result.err(message));
@@ -271,6 +272,33 @@ function invokeDprintOn(document: TextDocument): Promise<Result<string, string>>
       Ok: () => promise,
       Err: (reason) => asyncErr(reason),
    }));
+}
+
+const ExitCodeMessage = {
+   0: 'Success',
+
+   // Error codes
+   1: 'General error',
+   10: 'Argument parsing error',
+   11: 'Configuration resolution error',
+   12: 'Plugin resolution error',
+   13: 'No plugins found error',
+   14: 'No files found',
+
+   // Check error codes
+   20: 'dprint `check` found non-formatted files',
+};
+
+type ExitCode = keyof typeof ExitCodeMessage;
+
+function messageForExitCode(value: number): Result<string, string> {
+   return isCode(value)
+      ? Result.ok(ExitCodeMessage[value])
+      : Result.err(`unknown exit code '${value}'`);
+
+   function isCode(value: number): value is ExitCode {
+      return Object.keys(ExitCodeMessage).includes(value.toString());
+   }
 }
 
 interface Deferred<T> {

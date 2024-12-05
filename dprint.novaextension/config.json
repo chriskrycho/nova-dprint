@@ -26,7 +26,7 @@
     "key": "dprint.config.default.section",
     "type": "section",
     "title": "Default configuration",
-    "description": "Configuration options to use when there is no configuration file. Can be overridden by project-specific configuration.",
+    "description": "Configuration options to use when there is no configuration file. Can also be overridden by project-specific configuration.",
     "children": [
       {
         "key": "dprint.config.default.lineWidth",

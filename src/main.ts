@@ -68,7 +68,8 @@ function addNotification({ id, title, body }: {
 }
 
 class DprintExtension {
-   path: string;
+   workspacePath: Maybe<string>;
+   dprintPath: string;
 
    #disposables: {
       format: Maybe<Disposable>;
@@ -81,19 +82,26 @@ class DprintExtension {
    #ignoredEditors: Set<TextEditor> = new Set();
 
    static for(workspace: Workspace): Result<DprintExtension, string> {
-      return pathForDprint(workspace).map((path) => new this(path));
+      let workspacePath = Maybe.of(workspace.path);
+      return pathForDprint(workspace).map((path) => new this(path, workspacePath));
    }
 
-   private constructor(path: string) {
-      info(`constructing extension for workspace at '${path}'`);
-      this.path = path;
+   private constructor(dprintPath: string, workspacePath: Maybe<string>) {
+      info(
+         'constructing extension\n',
+         `dprintPath: '${dprintPath}'\n`,
+         workspacePath.mapOr('(no workspace)', (path) => `workspace path: ${path}`),
+      );
+      this.dprintPath = dprintPath;
+      this.workspacePath = workspacePath;
 
       this.#disposables = {
          format: just(nova.commands.register(
             'dprint.format',
             (editor: TextEditor) => {
                info('running `format` from format command');
-               return format(editor);
+
+               return format(editor, this.workspacePath);
             },
          )),
 
@@ -119,28 +127,27 @@ class DprintExtension {
                info('running `format` from `formatOnSave`');
                if (this.#ignoredEditors.has(editor)) return;
 
-               return format(editor);
+               return format(editor, this.workspacePath);
             })
          ),
 
          saveWithoutFormatting: just(nova.commands.register(
             'dprint.save-without-formatting',
-            (editor: TextEditor) => {
+            async (editor: TextEditor) => {
                this.#ignoredEditors.add(editor);
-               return safely(editor.save(), (reason) => JSON.stringify(reason)).then(
-                  result => {
-                     this.#ignoredEditors.delete(editor);
-
-                     if (result.isErr) {
-                        addNotification({
-                           id: 'dprint.error.save-without-formatting',
-                           title: 'dprint error',
-                           body:
-                              `Failed to save without executing dprint formatter. ${result.error}`,
-                        });
-                     }
-                  },
+               const result = await safely(
+                  editor.save(),
+                  (reason) => JSON.stringify(reason),
                );
+               this.#ignoredEditors.delete(editor);
+               if (result.isErr) {
+                  addNotification({
+                     id: 'dprint.error.save-without-formatting',
+                     title: 'dprint error',
+                     body:
+                        `Failed to save without executing dprint formatter. ${result.error}`,
+                  });
+               }
             },
          )),
 
@@ -148,7 +155,7 @@ class DprintExtension {
             pathForDprint(workspace).match({
                Ok: (path) => {
                   info(`updating path to ${path}`);
-                  this.path = path;
+                  this.dprintPath = path;
                },
                Err: (reason) => {
                   addNotification({
@@ -172,18 +179,21 @@ class DprintExtension {
    }
 }
 
-function format(editor: TextEditor): Promise<void> {
+function format(editor: TextEditor, workspacePath: Maybe<string>): Promise<void> {
    // TODO: handle remote documents?
    // TODO: handle unsaved documents using `unsaved://` URI scheme?
    if (editor.document.path) {
       info(`formatting '${editor.document.path}'`);
-      return invokeDprintOn(editor.document).then(match({
-         Ok(formatted) {
+      return invokeDprintOn(editor.document, workspacePath).then(match({
+         Ok({ stdout, stderr }) {
             info('successfully returned');
             return editor.edit((edit) => {
                let range = new Range(0, editor.document.length);
-               edit.replace(range, formatted);
+               edit.replace(range, stdout);
                info('edited with formatted code');
+               if (stderr.length > 0) {
+                  info(stderr);
+               }
             });
          },
          Err(reason) {
@@ -205,18 +215,26 @@ function format(editor: TextEditor): Promise<void> {
 // is a non-rooted Nova project.
 
 function pathForDprint(workspace: Workspace): Result<string, string> {
-   let configPath = getConfig(workspace.config, 'dprint.general.path', 'string')
-      .or(getConfig(nova.config, 'dprint.general.path', 'string'));
-
-   // When the user has specified a config path, that will override any
+   // When the user has specified a project config path, that will override any
    // per-project or global installation.
-   if (configPath.isJust) {
-      return checkPath(configPath.value);
+   let projectConfig = getConfig(workspace.config, 'dprint.general.path', 'string');
+   if (projectConfig.isJust) {
+      return checkPath(projectConfig.value);
    }
 
    // Otherwise, check for a local installation or a global installation to use.
    let dprintOnDisk = Maybe.of(workspace.path).andThen(findDprint);
-   return fromMaybe('could not find dprint on disk', dprintOnDisk);
+   if (dprintOnDisk.isJust) {
+      return checkPath(dprintOnDisk.value);
+   }
+
+   // Then fall back to an app-level configured path.
+   let appConfig = getConfig(nova.config, 'dprint.general.path', 'string');
+   if (appConfig.isJust) {
+      return checkPath(appConfig.value);
+   }
+
+   return Result.err('Could not find any dprint');
 }
 
 function findDprint(startingDir: string): Maybe<string> {
@@ -272,7 +290,18 @@ function checkPath(path: string): Result<string, string> {
    return Result.ok(path);
 }
 
-function invokeDprintOn(document: TextDocument): Promise<Result<string, string>> {
+type SuccessOutput = {
+   stdout: string;
+   stderr: string;
+};
+
+/**
+  Invoke dprint on a document by passing it via stdin. Use
+ */
+function invokeDprintOn(
+   document: TextDocument,
+   workspacePath: Maybe<string>,
+): Promise<Result<SuccessOutput, string>> {
    if (!extension) {
       return asyncErr('Tried to invoke dprint without an installed extension');
    }
@@ -281,13 +310,15 @@ function invokeDprintOn(document: TextDocument): Promise<Result<string, string>>
       todo('implement support for formatting paths based on type when missing path');
    }
 
-   let process = new Process(extension.path, {
+   info(`running ${extension.dprintPath} on ${document.path}`);
+
+   let process = new Process(extension.dprintPath, {
       args: ['fmt', '--stdin', document.path],
       stdio: 'pipe',
-      // cwd: defaults (correctly) to project directory; configurable?
+      cwd: workspacePath.unwrapOr(undefined),
    });
 
-   let { resolve, promise } = defer<Result<string, string>>();
+   let { resolve, promise } = defer<Result<SuccessOutput, string>>();
 
    let outBuffer = new Array<string>();
    process.onStdout((result) => outBuffer.push(result));
@@ -297,16 +328,10 @@ function invokeDprintOn(document: TextDocument): Promise<Result<string, string>>
 
    process.onDidExit((status) => {
       if (status === 0) {
-         if (errBuffer.length > 0) {
-            resolve(
-               Result.err(
-                  'process exited successfully but there were errors; not applying formatting'
-                     + errBuffer.join(''),
-               ),
-            );
-         } else {
-            resolve(Result.ok(outBuffer.join('')));
-         }
+         resolve(Result.ok({
+            stdout: outBuffer.join(''),
+            stderr: errBuffer.join(''),
+         }));
       } else {
          let statusMessage = `${status}: ${messageForExitCode(status)}`;
          let base = `process exited with a failure (${statusMessage})`;
@@ -319,7 +344,7 @@ function invokeDprintOn(document: TextDocument): Promise<Result<string, string>>
    process.start();
 
    // This little dance, including the assignment at the end, lets TS see that
-   // `stdin` is *actually* never defined after this.
+   // `stdin` is *actually* never undefined after this.
    let _stdin = process.stdin?.getWriter();
    if (!_stdin) return asyncErr('could not get a handle to stdin');
    let stdin = _stdin;
@@ -405,7 +430,7 @@ function l(s: string): string {
 }
 
 function info(...values: unknown[]): void {
-   if (canLog()) console.info(...values);
+   if (devLogMode()) console.info(...values);
 }
 
 function log(...values: unknown[]): void {
@@ -416,7 +441,7 @@ function error(...values: unknown[]): void {
    console.error(...values);
 }
 
-function canLog(): boolean {
+function devLogMode(): boolean {
    return nova.inDevMode()
       || getConfig(nova.config, 'dprint.general.debug-logging', 'boolean')
          .unwrapOr(false);
@@ -448,14 +473,14 @@ function getConfig(
 
 function readPackageJson(filePath: string): Maybe<Package> {
    let fd = toMaybe(
-      tryOrElse(identity, () => nova.fs.open(filePath) as FileTextMode),
-   );
+      tryOrElse((reason) => error(reason, filePath), () => nova.fs.open(filePath)),
+   ).andThen(fd => 'readline' in fd ? Maybe.just(fd) : Maybe.nothing<FileTextMode>());
 
    return fd
-      .andThen(fd => Maybe.of(fd.read()))
-      .tap(() => console.log('successfully got an fd'))
-      .andThen(s => toMaybe(tryOrElse(identity, JSON.parse(s))))
-      .tap((parsed) => info(`parsed: ${parsed}`))
+      // .tap((fd) => info(`successfully got an fd: ${fd}`))
+      .andThen((fd) => Maybe.of(fd.read()))
+      // .tap((contents) => info(`read contents: '${contents}'`))
+      .andThen((s) => toMaybe(tryOrElse((reason) => error(reason), () => JSON.parse(s))))
       .andThen((contents) =>
          isPackageJson(contents) ? Maybe.just(contents) : Maybe.nothing<Package>()
       );
@@ -492,10 +517,6 @@ function isObject(value: unknown): value is object {
 interface Package {
    dependencies?: Record<string, string>;
    devDependencies?: Record<string, string>;
-}
-
-function identity<A>(a: A): A {
-   return a;
 }
 
 function unreachable(x: never): never {

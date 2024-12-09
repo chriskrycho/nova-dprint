@@ -5,8 +5,8 @@
   "description": "dprint integration for Nova",
   "version": "0.1.0",
   "categories": ["formatters", "issues"],
-  "bugs": "https://github.com/chriskrycho/nova-dprint",
-  "homepage": "https://github.com/chriskrycho/nova-dprint/issues",
+  "bugs": "https://github.com/chriskrycho/nova-dprint/issues",
+  "homepage": "https://github.com/chriskrycho/nova-dprint",
   "funding": "https://github.com/sponsors/chriskrycho",
   "license": "BlueOak-1.0.0",
   "entitlements": {
